@@ -14,6 +14,11 @@ def main() -> int:
     parser.add_argument("--trials", type=int, default=10_000)
     parser.add_argument("--cash", type=Decimal, default=Decimal("30"))
     parser.add_argument("--ledger", default="data/events.jsonl")
+    parser.add_argument(
+        "--volatility-profile",
+        choices=("low-volatility", "standard", "high-volatility", "crisis"),
+        default="standard",
+    )
     parser.add_argument("--watch", action="store_true", help="keep polling in paper mode")
     parser.add_argument("--interval", type=float, default=15.0)
     parser.add_argument("--max-cycles", type=int, default=None)
@@ -24,7 +29,15 @@ def main() -> int:
             "Live execution is intentionally disabled in this build. Complete shadow-mode acceptance, add a reviewed execution adapter, and enable it only through a separate audited release."
         )
 
-    bot = TradingBot(BotConfig(starting_cash=args.cash, simulation_trials=args.trials, market_limit=args.markets, ledger_path=args.ledger))
+    bot = TradingBot(
+        BotConfig(
+            starting_cash=args.cash,
+            simulation_trials=args.trials,
+            market_limit=args.markets,
+            ledger_path=args.ledger,
+            volatility_profile=args.volatility_profile,
+        )
+    )
     if args.watch:
         cycles = PaperRuntime(bot, RuntimeConfig(interval_seconds=args.interval, max_cycles=args.max_cycles)).run()
         print(f"paper runtime stopped: cycles={cycles} ledger={args.ledger}")

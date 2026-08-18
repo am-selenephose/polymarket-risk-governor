@@ -22,6 +22,7 @@ class BotConfig:
     market_limit: int = 50
     min_edge: Decimal = Decimal("0.01")
     ledger_path: str = "data/events.jsonl"
+    volatility_profile: str = "standard"
 
 
 class TradingBot:
@@ -31,7 +32,10 @@ class TradingBot:
         self.config = config or BotConfig()
         self.data_client = data_client or PublicDataClient()
         self.scanner = StructuralScanner(min_edge=self.config.min_edge)
-        self.simulator = MonteCarloEngine(trials=self.config.simulation_trials)
+        self.simulator = MonteCarloEngine(
+            trials=self.config.simulation_trials,
+            profile_name=self.config.volatility_profile,
+        )
         self.policy = RiskPolicy()
         self.governor = RiskGovernor(self.policy)
         self.ledger = EventLedger(self.config.ledger_path)
@@ -114,7 +118,18 @@ class TradingBot:
             decisions.append(decision)
             if decision.approved:
                 self.paper.submit(decision)
-        self.ledger.append("run_complete", {"decisions": decisions, "paper": self.paper.snapshot()})
+        account = self._account_snapshot()
+        self.ledger.append(
+            "run_complete",
+            {
+                "decisions": decisions,
+                "paper": self.paper.snapshot(),
+                "risk_policy": self.policy,
+                "circuit_state": account.circuit_state,
+                "portfolio_equity": account.conservative_equity,
+                "high_water_mark": account.high_water_mark,
+            },
+        )
         return decisions
 
     def _account_snapshot(self) -> AccountSnapshot:

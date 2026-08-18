@@ -2,6 +2,7 @@ from .data import DataConfig, PublicDataClient
 from .engine import BotConfig, TradingBot
 from .execution import DisabledLiveExecution, ExecutionResult
 from .models import Decision, Market, MarketSnapshot, Signal, SimulationSummary
+from .profiles import PROFILES, VolatilityProfile, get_profile
 from .simulation import MonteCarloEngine
 from .strategy import StructuralScanner
 
@@ -19,4 +20,7 @@ __all__ = [
     "SimulationSummary",
     "StructuralScanner",
     "TradingBot",
+    "PROFILES",
+    "VolatilityProfile",
+    "get_profile",
 ]

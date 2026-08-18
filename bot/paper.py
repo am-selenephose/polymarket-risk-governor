@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
@@ -13,6 +13,8 @@ from risk.core import D, ZERO
 
 class DecimalJSONEncoder(json.JSONEncoder):
     def default(self, obj: Any):
+        if is_dataclass(obj):
+            return asdict(obj)
         if isinstance(obj, Decimal):
             return str(obj)
         if isinstance(obj, datetime):

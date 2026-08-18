@@ -2,6 +2,7 @@
 mode = "paper"
 starting_cash = "30"
 simulation_trials = 10000
+volatility_profile = "standard"
 market_limit = 50
 min_edge = "0.01"
 ledger_path = "data/events.jsonl"

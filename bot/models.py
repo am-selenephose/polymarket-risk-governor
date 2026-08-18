@@ -125,6 +125,7 @@ class SimulationSummary:
     max_loss: Decimal
     max_gain: Decimal
     stable: bool
+    profile_name: str = "standard"
 
 
 @dataclass(frozen=True)

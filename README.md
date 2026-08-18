@@ -16,6 +16,23 @@ The existing risk governor enforces fixed-point Decimal accounting, worst-case e
 python3 -m bot.cli --mode paper --markets 50 --trials 10000 --ledger data/events.jsonl
 ```
 
+### Configure the Monte Carlo volatility profile
+
+The simulation engine accepts four named profiles through `--volatility-profile`: `low-volatility`, `standard`, `high-volatility`, and `crisis`. Each profile changes **sigma**, **uncertainty penalty multiplier**, **adverse-fill fraction**, and **residual-leg probability** while preserving the same observed signal inputs. Start with `standard`; use `high-volatility` or `crisis` as stress tests rather than as a reason to increase size. For example:
+
+```bash
+python3 -m bot.cli --mode paper --volatility-profile high-volatility
+```
+
+| Profile | sigma | uncertainty penalty multiplier | adverse-fill fraction | residual-leg probability |
+| --- | ---: | ---: | ---: | ---: |
+| low-volatility | 0.0025 | 0.75 | 0.25 | 0.04 |
+| standard | 0.0060 | 1.00 | 0.50 | 0.10 |
+| high-volatility | 0.0120 | 1.50 | 0.75 | 0.18 |
+| crisis | 0.0250 | 2.50 | 1.00 | 0.30 |
+
+These are explicit **stress assumptions**, not estimates of future market performance. Calibrate them against replay and shadow-fill data before allowing them to influence live sizing.
+
 The command uses public read-only endpoints. Network availability, API schemas, rate limits, and market data freshness can change. The bot records API failures rather than treating missing data as a trade. For continuous paper polling, use `python3 -m bot.cli --mode paper --watch --interval 15 --max-cycles 10`; omit `--max-cycles` only when you intentionally want a long-running process.
 
 When the public endpoints were unreachable in this environment, the runner returned zero decisions and wrote a `market_discovery_error` event to the ledger. That is deliberate fail-closed behavior.

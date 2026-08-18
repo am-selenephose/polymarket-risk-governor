@@ -5,6 +5,7 @@ import random
 from decimal import Decimal
 
 from .models import Signal, SimulationSummary, decimal_mean
+from .profiles import VolatilityProfile, get_profile
 from risk.core import D, ZERO
 
 
@@ -15,27 +16,32 @@ class MonteCarloEngine:
     calibrated with replay/live-shadow data before its output can affect sizing.
     """
 
-    def __init__(self, trials: int = 10_000, seed_namespace: str = "risk-bot-v1"):
+    def __init__(
+        self,
+        trials: int = 10_000,
+        seed_namespace: str = "risk-bot-v1",
+        profile_name: str = "standard",
+    ):
         if trials < 100:
             raise ValueError("trials must be at least 100")
         self.trials = trials
         self.seed_namespace = seed_namespace
+        self.profile = get_profile(profile_name)
 
     def evaluate(self, signal: Signal) -> SimulationSummary:
-        seed_material = f"{self.seed_namespace}:{signal.signal_id}".encode()
+        seed_material = f"{self.seed_namespace}:{self.profile.name}:{signal.signal_id}".encode()
         seed = int.from_bytes(hashlib.sha256(seed_material).digest()[:8], "big")
         rng = random.Random(seed)
 
-        edge = signal.edge_after_costs
-        # Uncertainty is intentionally pessimistic: the signal's own uncertainty
-        # penalty is widened to account for execution variance and adverse fill.
-        sigma = max(Decimal("0.002"), signal.model_uncertainty_penalty * Decimal("1.5"))
+        edge = signal.gross_edge - signal.estimated_fees - signal.estimated_slippage
+        uncertainty_penalty = signal.model_uncertainty_penalty * self.profile.uncertainty_penalty_multiplier
+        sigma = max(self.profile.sigma, uncertainty_penalty)
         outcomes: list[Decimal] = []
         for _ in range(self.trials):
             execution_shock = D(rng.gauss(0.0, float(sigma)))
-            adverse_fill = D(rng.random()) * signal.estimated_slippage
-            residual_penalty = signal.residual_leg_loss if rng.random() < Decimal("0.10") else ZERO
-            outcomes.append(edge + execution_shock - adverse_fill - residual_penalty)
+            adverse_fill = D(rng.random()) * signal.estimated_slippage * self.profile.adverse_fill_fraction
+            residual_penalty = signal.residual_leg_loss if rng.random() < self.profile.residual_leg_probability else ZERO
+            outcomes.append(edge + execution_shock - uncertainty_penalty - adverse_fill - residual_penalty)
 
         ordered = sorted(outcomes)
         mean = decimal_mean(outcomes)
@@ -55,6 +61,7 @@ class MonteCarloEngine:
             max_loss=min(outcomes),
             max_gain=max(outcomes),
             stable=stable,
+            profile_name=self.profile.name,
         )
 
     @staticmethod
