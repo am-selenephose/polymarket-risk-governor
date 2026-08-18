@@ -1,0 +1,10 @@
+# Copy to config.toml for local paper experiments. Never put private keys here.
+mode = "paper"
+starting_cash = "30"
+simulation_trials = 10000
+market_limit = 50
+min_edge = "0.01"
+ledger_path = "data/events.jsonl"
+
+# Live execution remains disabled in this release.
+# Any future live adapter must use a separate secret manager and reviewed policy.

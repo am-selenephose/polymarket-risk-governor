@@ -1,16 +1,24 @@
-# Polymarket Risk Governor
+# Polymarket Research and Risk Bot
 
-A deterministic, fail-closed risk-management module for a Polymarket trading bot. This repository contains the safety layer designed for the proposed $30 paper/shadow/live-experiment workflow.
+A paper-first Polymarket research bot inspired by social-media claims about high-frequency scanning and Monte Carlo decision systems. This repository is deliberately designed to test those ideas rather than repeat their marketing claims.
 
-## What is implemented
+> **Important:** The screenshots supplied with the request contain self-reported profit claims, not independently verified performance evidence. This project does not promise profit, reproduce those figures, or treat “10,000 simulations” as a predictive guarantee.
 
-The module provides fixed-point Decimal accounting, versioned policy limits, worst-case position and open-order reservations, market/event concentration checks, stale-data and metadata-hash gates, daily and rolling loss gates, drawdown checks, reduce-only behavior, and a circuit breaker with `NORMAL`, `CAUTION`, `PAUSE_NEW`, `UNWIND_ONLY`, and `HALTED` states.
+## Current capabilities
 
-The risk governor **does not connect to Polymarket, sign orders, submit orders, hold private keys, or move funds**. It is intentionally isolated from execution. An execution adapter must call `RiskGovernor.evaluate()` before signing, then verify that the signed size and price exactly match the approved decision.
+The bot discovers public market metadata through the Gamma API, reads public CLOB order books, filters stale or ambiguous markets, detects mechanically defined binary parity and multi-outcome completeness relationships, evaluates execution uncertainty with a deterministic 10,000-trial Monte Carlo stress engine, passes every candidate through the deterministic risk governor, and records decisions and paper fills to an append-only JSONL ledger.
 
-## Safety defaults
+The existing risk governor enforces fixed-point Decimal accounting, worst-case exposure, open-order reservations, market and linked-event caps, stale-feed and metadata-hash checks, daily and rolling loss limits, drawdown gates, residual-leg controls, and fail-closed circuit states. The AI or research layer cannot override it.
 
-The initial policy uses a $10 live-experiment cap inside a larger $30 account, a $1 maximum order notional, a $2 market-loss limit, a $3 linked-event limit, a $0.50 residual-leg limit, a $2 cash safety buffer, and a $2 maximum drawdown. It is designed for paper/shadow mode and a tiny controlled experiment, not guaranteed returns.
+## Run a paper scan
+
+```bash
+python3 -m bot.cli --mode paper --markets 50 --trials 10000 --ledger data/events.jsonl
+```
+
+The command uses public read-only endpoints. Network availability, API schemas, rate limits, and market data freshness can change. The bot records API failures rather than treating missing data as a trade. For continuous paper polling, use `python3 -m bot.cli --mode paper --watch --interval 15 --max-cycles 10`; omit `--max-cycles` only when you intentionally want a long-running process.
+
+When the public endpoints were unreachable in this environment, the runner returned zero decisions and wrote a `market_discovery_error` event to the ledger. That is deliberate fail-closed behavior.
 
 ## Run tests
 
@@ -18,18 +26,31 @@ The initial policy uses a $10 live-experiment cap inside a larger $30 account, a
 python3 -m pytest -q
 ```
 
-No live trading code is included. Before connecting an execution adapter, add authoritative account reconciliation, user-stream recovery, idempotent cancellation, key isolation, and a manual recovery gate for halted states.
+The repository currently has an offline test suite covering structural signals, deterministic 10,000-trial simulation, paper fills, stale/ambiguous data gates, drawdown controls, reservation limits, circuit breakers, and the live-mode hard stop.
 
-## Integration contract
+## Live trading status
 
-1. Build an `AccountSnapshot` from authoritative balances, positions, and open orders.
-2. Build a `MarketSnapshot` from the current book and canonical market metadata hash.
-3. Create an `OrderIntent` containing all-in fee/slippage reserves and residual-leg worst-case loss.
-4. Call `RiskGovernor.evaluate()`.
-5. Sign and submit only if `decision.allowed` is true, using exactly `decision.approved_size`.
-6. Append the decision and subsequent order/trade events to an immutable ledger.
-7. On reconnect, unknown fill, balance mismatch, or security anomaly, stop new signing and reconcile before resuming.
+Live execution is **disabled**. `python3 -m bot.cli --mode live` exits intentionally. The repository includes only a fail-closed execution interface; it does not store private keys, create authenticated clients, sign orders, submit orders, or move funds.
+
+Before enabling any live adapter, require a separate reviewed release with authoritative balance and position reconciliation, user-stream recovery, idempotent cancellation, key isolation, explicit post-only/taker policy, partial-fill hedging, settlement monitoring, manual halt recovery, and shadow-mode evidence. The initial safe path is $0 paper mode, then live shadow mode, and only later a separately capped experiment if after-cost expectancy survives pessimistic replay.
+
+## Architecture
+
+```text
+Gamma market discovery ─┐
+                         ├─> canonical market snapshots ─> structural scanner
+CLOB order books ────────┘                                      │
+                                                               v
+                                                    Monte Carlo stress filter
+                                                               │
+                                                               v
+                                                       deterministic governor
+                                                               │
+                                            paper broker + append-only event ledger
+                                                               │
+                                                       metrics / post-mortems
+```
 
 ## Sources
 
-The state model follows the official Polymarket documentation for [Order Lifecycle](https://docs.polymarket.com/concepts/order-lifecycle), [Fees](https://docs.polymarket.com/trading/fees), [Real-Time Order Updates](https://docs.polymarket.com/trading/realtime-order-updates), and [Negative Risk Markets](https://docs.polymarket.com/concepts/negative-risk).
+The public adapter and state assumptions follow the official Polymarket documentation for [API](https://docs.polymarket.com/getting-started/api), [Real-Time Data](https://docs.polymarket.com/market-data/realtime-data), [Order Lifecycle](https://docs.polymarket.com/concepts/order-lifecycle), [Fees](https://docs.polymarket.com/trading/fees), and [Negative Risk Markets](https://docs.polymarket.com/concepts/negative-risk).
