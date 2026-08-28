@@ -12,6 +12,14 @@ requires-python = ">=3.11"
 [project.scripts]
 polymarket-paper-bot = "bot.cli:main"
 
+[project.optional-dependencies]
+dev = [
+  "pytest>=8,<10",
+]
+
+[tool.setuptools.packages.find]
+include = ["bot*", "risk*"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]

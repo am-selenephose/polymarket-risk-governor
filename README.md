@@ -10,6 +10,19 @@ The bot discovers public market metadata through the Gamma API, reads public CLO
 
 The existing risk governor enforces fixed-point Decimal accounting, worst-case exposure, open-order reservations, market and linked-event caps, stale-feed and metadata-hash checks, daily and rolling loss limits, drawdown gates, residual-leg controls, and fail-closed circuit states. The AI or research layer cannot override it.
 
+## Install and verify
+
+Python 3.11 or newer is required.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e '.[dev]'
+make verify PYTHON=python
+```
+
+The release gate installs both top-level packages (`bot` and `risk`), runs the offline test suite, compiles the source, and confirms that live mode still exits non-zero. CI repeats the gate on Python 3.11, 3.12, and 3.13.
+
 ## Run a paper scan
 
 ```bash
@@ -43,7 +56,7 @@ When the public endpoints were unreachable in this environment, the runner retur
 python3 -m pytest -q
 ```
 
-The repository currently has an offline test suite covering structural signals, deterministic 10,000-trial simulation, paper fills, stale/ambiguous data gates, drawdown controls, reservation limits, circuit breakers, and the live-mode hard stop.
+The repository currently has an offline test suite covering structural signals, deterministic 10,000-trial simulation, paper fills, stale/ambiguous data gates, drawdown controls, reservation limits, circuit breakers, and the live-mode hard stop. Passing tests demonstrate those deterministic controls; they do not demonstrate market profitability.
 
 ## Live trading status
 
