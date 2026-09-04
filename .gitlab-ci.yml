@@ -1,0 +1,20 @@
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
+verify:
+  stage: test
+  image: "python:${PYTHON_VERSION}-bookworm"
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.11", "3.12", "3.13"]
+  cache:
+    key: "pip-${PYTHON_VERSION}-${CI_COMMIT_REF_SLUG}"
+    paths: [.cache/pip/]
+  variables:
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  script:
+    - python -m pip install --upgrade pip
+    - python -m pip install -e '.[dev]'
+    - make verify PYTHON=python
